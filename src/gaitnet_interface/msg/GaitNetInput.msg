@@ -1,0 +1,6 @@
+FootPositions footPositions_xy_b
+float64 comHeight_z_w
+float64[3] linearVelocity_xyz_b
+float64[3] angularVelocity_xyz_b
+ContactState contactState
+float64[3] projectedGravity_xyz_b

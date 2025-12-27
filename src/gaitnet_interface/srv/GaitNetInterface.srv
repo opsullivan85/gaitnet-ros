@@ -1,0 +1,5 @@
+TerrainMaskRobot terrainMask
+GaitNetInput state
+ControlInput control
+---
+FootstepAction action
