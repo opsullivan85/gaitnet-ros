@@ -48,10 +48,14 @@ find_package(catkin REQUIRED COMPONENTS
 # Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  TerrainMaskRow.msg
-  TerrainMaskLeg.msg
-  TerrainMaskRobot.msg
+  ContactState.msg
+  ControlInput.msg
+  FootPositions.msg
   FootstepAction.msg
+  GaitNetInput.msg
+  StepCSpaceLeg.msg
+  StepCSpaceRobot.msg
+  StepCSpaceRow.msg
 )
 
 # Generate services in the 'srv' folder

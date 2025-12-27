@@ -1,4 +1,0 @@
-TerrainMaskLeg FR
-TerrainMaskLeg FL
-TerrainMaskLeg RL
-TerrainMaskLeg RR

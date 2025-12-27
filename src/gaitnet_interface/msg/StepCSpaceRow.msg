@@ -1,0 +1,1 @@
+bool[25] rowCSpace

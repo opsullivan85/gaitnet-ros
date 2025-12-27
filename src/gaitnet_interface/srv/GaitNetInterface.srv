@@ -1,4 +1,4 @@
-TerrainMaskRobot terrainMask
+StepCSpaceRobot stepCSpace
 GaitNetInput state
 ControlInput control
 ---
