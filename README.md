@@ -1,3 +1,11 @@
+# running the code
+
+1. build the dockercontainer in VSCode.
+    a. have the [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension installed
+2. `catkin build`
+3. `source ./devel/setup.bash`
+4. `roslaunch gaitnet_ros gaitnet.launch`
+
 # gaitnet-ros
 
 Read the interface [readme](./src/gaitnet_interface/README.md).

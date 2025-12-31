@@ -27,13 +27,12 @@ RUN sudo apt update && sudo apt upgrade -y
 # Install apt packages
 RUN sudo apt install -y git python3-pip python3-catkin-tools python3.8-venv
 
+# Install Python requirements
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
 # Rosdep update
 RUN rosdep update
 
 # Source the ROS setup file
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> ~/.bashrc
-
-# Install from requirements.txt
-ARG REQUIREMENTS_FILE=requirements.txt
-COPY --chown=1000:1000 ../$REQUIREMENTS_FILE /tmp/$REQUIREMENTS_FILE
-RUN pip3 install -r /tmp/$REQUIREMENTS_FILE

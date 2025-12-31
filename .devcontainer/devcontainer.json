@@ -1,6 +1,6 @@
 {
   "name": "noetic desktop",
-  "dockerFile": "Dockerfile",
+  "dockerFile": "../Dockerfile",
   "runArgs": [
     "--privileged",
     "--network=host"
