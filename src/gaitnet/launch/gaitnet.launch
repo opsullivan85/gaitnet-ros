@@ -1,6 +1,0 @@
-<launch>
-  <node pkg="gaitnet" type="gaitnetservice.py" name="gaitnet_service" output="screen">
-    <param name="model_path" value="$(find gaitnet)/models/gaitnet_model.pth"/>
-    <param name="device" value="cuda"/>
-  </node>
-</launch>
