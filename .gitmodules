@@ -1,0 +1,3 @@
+[submodule "src/gaitnet_ros/gaitnet-models"]
+	path = src/gaitnet_ros/gaitnet-models
+	url = https://github.com/opsullivan85/gaitnet-models
