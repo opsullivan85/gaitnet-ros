@@ -25,7 +25,7 @@ RUN sudo usermod --append --groups video $USERNAME
 RUN sudo apt update && sudo apt upgrade -y
 
 # Install apt packages
-RUN sudo apt install -y git python3-pip python3-catkin-tools python3.8-venv
+RUN sudo apt install -y git python3-pip python3-catkin-tools python3.8-venv python3-tk
 
 # Install Python requirements
 COPY requirements.txt .

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import gaitnet
 import gaitnet.constants as const
-from gaitnet.gaitnet.actions.footstep_action import NO_STEP
 # we're not going to talk about this naming...
 from gaitnet.gaitnet.gaitnet import GaitnetActor
+from gaitnet.gaitnet.components.footstep_candidate_sampler import FootstepCandidateSampler
+from gaitnet.simulation.cfg.footstep_scanner_constants import idx_to_xy, xy_to_idx
+from gaitnet.util.pga import generate_footstep_action
 from pathlib import Path
 import torch
 import rospy
@@ -13,9 +15,10 @@ from gaitnet_interface.srv import (
     GaitNetInterfaceResponse as Res,
     GaitNetInterface,
 )
-from gaitnet_interface.msg import StepCSpaceLeg
+from gaitnet_interface.msg import FootstepAction, StepCSpaceLeg
 import re
 from types import SimpleNamespace
+from time import perf_counter
 
 
 args_cli = SimpleNamespace()
@@ -23,10 +26,10 @@ args_cli.num_envs = 1  # since we're in a ROS service, we only need one env
 
 
 leg_name_map: dict[int, str] = {
-    Res.action.LEG_FL: "front left",
-    Res.action.LEG_FR: "front right",
-    Res.action.LEG_RL: "rear left",
-    Res.action.LEG_RR: "rear right",
+    FootstepAction.LEG_FL: "front left",
+    FootstepAction.LEG_FR: "front right",
+    FootstepAction.LEG_RL: "rear left",
+    FootstepAction.LEG_RR: "rear right",
 }
 def pretty_result_str(res: Res) -> str:
     if res.action.noop:
@@ -56,7 +59,7 @@ class GaitNetService:
             trunk_layer_sizes=[128, 128, 128],
         )
         agent = model
-        checkpoint = torch.load(model_path, map_location=device)
+        checkpoint = torch.load(model_path, map_location=device, weights_only=True)
         state_dict = checkpoint["model_state_dict"]
         state_dict = {
             re.sub(r"^actor\.", "", k): v
@@ -137,18 +140,18 @@ class GaitNetService:
         )
         base_obs = terrain_obs[:, :const.gait_net.robot_state_dim]
 
-        for leg in range(const.robot.num_legs):
+        for leg_num in range(const.robot.num_legs):
             leg_terrain_mask = FootstepCandidateSampler.filter_cost_map(
                 cost_map=None,
                 obs=terrain_obs,
             )
             # prior method uses 0=valid, inf=invalid, so change this to a bool mask
-            leg_terrain_mask = leg_terrain_mask[:, leg] != float("inf")
+            leg_terrain_mask = leg_terrain_mask[:, leg_num] != float("inf")
 
             leg_action, leg_logit = generate_footstep_action(
                 state=base_obs,
                 terrain_mask=leg_terrain_mask,
-                leg=leg,
+                leg=leg_num,
                 gaitnet=self.model,
                 pos_to_idx=xy_to_idx,
                 idx_to_pos=idx_to_xy,
@@ -156,15 +159,18 @@ class GaitNetService:
             # since we pick the single best action across all legs, we need to compare logits here
             better_mask = leg_logit.squeeze(-1) > best_logits
             best_logits = torch.where(better_mask, leg_logit.squeeze(-1), best_logits)
+            # for env 0, if this is the new best action, log it
+            if best_logits[0] == leg_logit.squeeze(-1)[0]:
+                rospy.loginfo(f"Leg {leg_num} action: {leg_action}, logit: {leg_logit.item()}, better than best: {better_mask.item()}")
             best_actions = torch.where(
                 better_mask.unsqueeze(-1),
                 leg_action,
                 best_actions,
             )
-        
+
         # Evaluate no-op option and compare against best leg action
         # No-op one-hot is [1,0,0,0,0] (index 0), with x=0, y=0, cost=0
-        no_op_one_hot = torch.zeros((args_cli.num_envs, 5), device=device)
+        no_op_one_hot = torch.zeros((args_cli.num_envs, const.robot.num_legs+1), device=device)
         no_op_one_hot[:, 0] = 1  # no-op is index 0
         no_op_obs = torch.cat(
             [
@@ -182,24 +188,39 @@ class GaitNetService:
         # Check if no-op is better than best leg action
         no_op_better = no_op_logit > best_logits
         best_logits = torch.where(no_op_better, no_op_logit, best_logits)
+        if no_op_better[0]:
+            rospy.loginfo(f"Noop action, logit: {no_op_logit.item()}, better than best leg action: {best_logits.item()}")
         # No-op action: leg=NO_STEP (-1), x=0, y=0, duration=0
-        no_op_action = torch.tensor([NO_STEP, 0.0, 0.0, 0.0], device=device).expand(args_cli.num_envs, -1)
+        no_op_action = torch.tensor([const.NO_STEP, 0.0, 0.0, 0.0], device=device).expand(args_cli.num_envs, -1)
         best_actions = torch.where(
             no_op_better.unsqueeze(-1),
             no_op_action,
             best_actions,
         )
         
-        res = Res()
+        best_action = best_actions[0]  # since num_envs=1
+        leg, x, y, duration = best_action.tolist()
 
-        # return res
+        res = Res()
+        if leg == const.NO_STEP:
+            res.action.noop = True
+            return res
+
+        res.action.noop = False
+        res.action.leg = int(leg)
+        res.action.hip_offset_xy = [x, y]
+        res.action.swing_duration = duration
+        return res
+        
 
     def handle_request(self, req: Req) -> Res:
-        rospy.loginfo("Received GaitNet service request")
+        start_time = perf_counter()
+        rospy.loginfo("===== Received GaitNet service request")
         input_tensor = self.interpret_request(req)
 
         res = self.synthesize_footstep_action(input_tensor)
-        rospy.loginfo(f"Responding with action: {pretty_result_str(res)}")
+        elapsed = (perf_counter() - start_time) * 1000
+        rospy.loginfo(f"===== Responding with action: {pretty_result_str(res)} after {elapsed:.3f}ms\n")
         return res
 
 
