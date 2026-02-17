@@ -54,7 +54,16 @@ class DummyService:
         self.responses = cycle(seq)
 
     def handle_request(self, req: Req) -> Res:
-        return next(self.responses)
+        rospy.loginfo("="*20)
+        rospy.loginfo("GOT REQUEST")
+        rospy.loginfo(f"req.control: {req.control}")
+        rospy.loginfo(f"req.state: {req.state}")
+        rospy.logdebug(f"req.stepCSpace: {req.stepCSpace}")
+
+        res: Res = next(self.responses)
+        rospy.loginfo("RETURNING DUMMY RESPONSE")
+        rospy.loginfo(f"res.action: {res.action}")
+        return res
 
 
 if __name__ == "__main__":
@@ -62,7 +71,7 @@ if __name__ == "__main__":
     rospy.init_node("gaitnet_service")
 
     dummy_service = DummyService()
-    dummy_service = ServiceDebugWrapper.wrap_if_debug_service(dummy_service)
+    dummy_service = ServiceDebugWrapper.wrap_if_debug_service(dummy_service, namespace="/gaitnet_service/debug")
     service = rospy.Service(
         name="gaitnet_service",
         service_class=GaitNetInterface,

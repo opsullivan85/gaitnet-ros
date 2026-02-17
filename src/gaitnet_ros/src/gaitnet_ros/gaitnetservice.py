@@ -249,7 +249,7 @@ if __name__ == "__main__":
         exit(1)
 
     gaitnet_service = GaitNetService(device=device, model_path=model_path)
-    gaitnet_service = ServiceDebugWrapper.wrap_if_debug_service(gaitnet_service)
+    gaitnet_service = ServiceDebugWrapper.wrap_if_debug_service(gaitnet_service, namespace="/gaitnet_service/debug")
     service = rospy.Service(
         name="gaitnet_service",
         service_class=GaitNetInterface,

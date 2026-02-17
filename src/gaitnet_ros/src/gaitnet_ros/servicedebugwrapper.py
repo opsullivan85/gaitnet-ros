@@ -1,28 +1,34 @@
 from __future__ import annotations
 import rospy
-import std_msgs.msg
-import genpy
-from typing import Generic, Protocol, TypeVar
+from typing import Protocol
+from gaitnet_interface.srv import (
+    GaitNetInterfaceRequest as Req,
+    GaitNetInterfaceResponse as Res
+)
+from gaitnet_interface.msg import StepCSpaceRobot, GaitNetInput, ControlInput, FootstepAction
 
-ReqT = TypeVar("ReqT", bound=genpy.Message, contravariant=True)
-ResT = TypeVar("ResT", bound=genpy.Message, covariant=True)
-
-class SupportsHandleRequest(Protocol[ReqT, ResT]):
-    def handle_request(self, req: ReqT) -> ResT:
+class GaitnetInterfaceService(Protocol):
+    def handle_request(self, req: Req) -> Res:
         ...
 
-class ServiceDebugWrapper(Generic[ReqT, ResT]):
-    def __init__(self, inner: SupportsHandleRequest[ReqT, ResT]) -> None:
+class ServiceDebugWrapper():
+    def __init__(self, inner: GaitnetInterfaceService, namespace: str = "/debug") -> None:
         self.inner = inner
+        self.control_pub = rospy.Publisher(f"{namespace}/control", ControlInput, queue_size=1)
+        self.state_pub = rospy.Publisher(f"{namespace}/state", GaitNetInput, queue_size=1)
+        self.step_c_space_pub = rospy.Publisher(f"{namespace}/step_c_space", StepCSpaceRobot, queue_size=1)
+        self.action_pub = rospy.Publisher(f"{namespace}/action", FootstepAction, queue_size=1)
 
-    def handle_request(self, req: ReqT) -> ResT:
-        rospy.loginfo(f"Received request: {req}")
+    def handle_request(self, req: Req) -> Res:
+        self.control_pub.publish(req.control)
+        self.state_pub.publish(req.state)
+        self.step_c_space_pub.publish(req.stepCSpace)
         res = self.inner.handle_request(req)
-        rospy.loginfo(f"Sending response: {res}")
+        self.action_pub.publish(res.action)
         return res
 
     @classmethod
-    def wrap_if_debug_service(cls, inner: SupportsHandleRequest[ReqT, ResT]) -> ServiceDebugWrapper[ReqT, ResT] | SupportsHandleRequest[ReqT, ResT]:
+    def wrap_if_debug_service(cls, inner: GaitnetInterfaceService, namespace: str = "/debug") -> ServiceDebugWrapper | GaitnetInterfaceService:
         if rospy.get_param("~debug_service", False):
-            return ServiceDebugWrapper(inner)
+            return ServiceDebugWrapper(inner, namespace)
         return inner
