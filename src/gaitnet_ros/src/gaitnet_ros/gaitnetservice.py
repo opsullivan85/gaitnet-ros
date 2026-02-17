@@ -226,6 +226,7 @@ class GaitNetService:
 
 
 if __name__ == "__main__":
+    from gaitnet_ros.servicedebugwrapper import ServiceDebugWrapper
     rospy.init_node("gaitnet_service")
 
     device_str = rospy.get_param("~device", "cpu")
@@ -248,6 +249,7 @@ if __name__ == "__main__":
         exit(1)
 
     gaitnet_service = GaitNetService(device=device, model_path=model_path)
+    gaitnet_service = ServiceDebugWrapper.wrap_if_debug_service(gaitnet_service)
     service = rospy.Service(
         name="gaitnet_service",
         service_class=GaitNetInterface,
